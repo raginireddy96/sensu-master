@@ -1,0 +1,9 @@
+{% for hosts in groups [ 'local' ] %}
+{
+"transport": 
+{
+"name": "rabbitmq",
+"reconnect_on_error": true
+}
+}
+{% endfor %}

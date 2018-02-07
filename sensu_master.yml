@@ -1,0 +1,114 @@
+---
+- hosts: localhost
+  become_method: sudo
+  remote_user: root
+  tasks:
+  - name: creating repo for sensu
+    template:
+      src: /root/ragini/sensu_repo.j2
+      dest: /etc/yum.repos.d/sensu.repo
+  - name: installing sensu
+    yum:
+      name: sensu
+      state: latest
+  - name: creating client-config file(making master server as one of the client0
+    template:
+      src: /root/ragini/client_config.j2
+      dest: /etc/sensu/conf.d/client.json
+  - name: creating config file for transport
+    template:
+      src: /root/ragini/transport.j2
+      dest: /etc/sensu/conf.d/transport.json
+  - name: creating config file for sensu-api
+    template:
+      src: /root/ragini/sensu_api.j2
+      dest: /etc/sensu/conf.d/api.json
+  - name: installing redis
+    yum:
+      name: redis
+      state: latest
+  - name: creating config file for redis
+    template:
+      src: /root/ragini/redis.j2
+      dest: /etc/sensu/conf.d/redis.json
+  - name: installing erlang
+    yum:
+      name: "{{ item }}"
+      state: latest
+    with_items:
+      - erlang
+      - rabbitmq-server
+      - uchiwa
+      - gem
+      - postfix
+  - name: creating config file for rabbitmq-server
+    template:
+      src: /root/ragini/rabbitmq.j2
+      dest: /etc/sensu/conf.d/rabbitmq.json
+  - name: starting the services
+    systemd:
+      name: "{{ item }}" 
+      state: started
+    with_items:
+      - sensu-server
+      - sensu-client
+      - rabbitmq-server
+      - redis
+      - sensu-api
+  - name: creating vhost in rabbitmq
+    rabbitmq_vhost:
+      name: /sensu
+      state: present
+  - name: creating user and assigining permissions in rabbitmq
+    rabbitmq_user:
+      user: sensu
+      password: secret
+      vhost: /sensu
+      configure_priv: .*
+      read_priv: .*
+      write_priv: .*
+      state: present
+  - name: config file for uchiwa
+    template:
+      src: /root/ragini/uchiwa.j2
+      dest: /etc/sensu/uchiwa.json
+  - name: starting uchiwa
+    shell: sudo service uchiwa start
+  - name: installing sensu plugins
+    shell: cd /opt/sensu/embedded/bin/
+    shell: sensu-install -p cpu-checks
+           sensu-install -p cpu-checks  
+           sensu-install -p disk-checks  
+           sensu-install -p memory-checks  
+           sensu-install -p nginx  
+           sensu-install -p process-checks  
+           sensu-install -p load-checks  
+           sensu-install -p vmstats
+           gem install sensu-plugins-mailer 
+  - name: config file for cpu-check
+    template:
+      src: /root/ragini/cpu-check.j2
+      dest: /etc/sensu/conf.d/check_cpu_linux.json 
+  - name: config file for memory-check
+    template:
+      src: /root/ragini/memory-check.j2
+      dest: /etc/sensu/conf.d/check_memory_linux.json
+  - name: configfile for disk-check
+    template:
+      src: /root/ragini/disk-check.j2
+      dest: /etc/sensu/conf.d/check_disk_usage_linux.json
+  - name: configfile for handlers
+    template:
+      src: /root/ragini/handler.j2
+      dest: /etc/sensu/conf.d/ handler_mail.json
+  - name: configfile for mailers
+    template:
+      src: /root/ragini/mailer.j2
+      dest: /etc/sensu/conf.d/mailer.json
+  - name: restarting sensu-server
+    systemd:
+      name: sensu-server
+      state: restarted
+
+
+

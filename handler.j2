@@ -1,0 +1,10 @@
+{% for hosts in groups [ 'local' ] %}
+{
+          "handlers": {
+            "mailer": {
+          "type": "pipe",
+          "command": "/opt/sensu/embedded/bin/handler-mailer.rb"
+            }
+          }
+}
+{% endfor %}
